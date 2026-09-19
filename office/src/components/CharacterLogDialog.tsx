@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { useOpenLogStore, isToolRow, dialogPlacement, dialogMaxHeight } from "../stores/openLogStore";
 import { useUiPrefsStore } from "../stores/uiPrefsStore";
 import type { TimelineEntry } from "../bindings";
-import { useT, type MessageKey } from "../i18n";
+import { useT, type MessageKey, currentLocale, intlTag } from "../i18n";
 
 /** Dialog width (must match .log-dialog in the CSS). */
 const DIALOG_W = 420;
@@ -11,7 +11,7 @@ function timeLabel(ts: string | null): string {
   if (!ts) return "";
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return d.toLocaleTimeString(intlTag(currentLocale()), { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 
 export function CharacterLogDialog() {

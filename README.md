@@ -1,4 +1,4 @@
-# Штаб-квартира · Claude HQ Office
+# Claude — Abdulaziz Office
 
 Telegram-бот для нескольких долгоживущих Claude Code воркеров и локальный визуальный офис: комнаты, инструменты, субагенты, история задач, очередь и статистика токенов.
 
@@ -7,7 +7,7 @@ Telegram-бот для нескольких долгоживущих Claude Code
 ## Что внутри
 
 - `hq/` — Telegram-мост, локальный HTTP API, MCP-инструменты и учёт поручений.
-- `office/` — приложение React + PixiJS + Tauri, адаптация [Claude Code Park](https://github.com/t-soda/claude-code-park), MIT, автор t-soda.
+- `office/` — приложение React + PixiJS + Tauri на основе [Claude Code Park](https://github.com/t-soda/claude-code-park) (MIT, автор t-soda; см. [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
 - Долгоживущие процессы `claude -p` со stream-json: один воркер на проект, последовательная обработка ходов, возобновление сессий.
 - Диспетчер, журнал действий, обзор субагентов по событиям Agent/Task, фоновые события CLI, usage по поручению с дедупликацией ID сообщений.
 
@@ -16,8 +16,8 @@ Telegram-бот для нескольких долгоживущих Claude Code
 Нужны macOS, Python 3.11+, установленный и авторизованный Claude Code. Для Office — Node.js 22+, npm, Rust и Xcode Command Line Tools. Использование Claude требует собственного доступа; проект не предоставляет подписку или токены.
 
 ```sh
-git clone https://github.com/abubakirilhomov/shtab-kvartira.git
-cd shtab-kvartira
+git clone https://github.com/atxamov99/claude-abdulaziz-office.git
+cd claude-abdulaziz-office
 # Не выполняйте копирование поверх существующего HQ.
 test ! -e "$HOME/claude-hq" && cp -R hq "$HOME/claude-hq"
 cd "$HOME/claude-hq"

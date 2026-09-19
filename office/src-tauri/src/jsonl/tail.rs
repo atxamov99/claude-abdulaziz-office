@@ -158,7 +158,7 @@ mod tests {
 
     fn tmp_file(label: &str, content: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "claude_code_park_tail_test_{}_{}.jsonl",
+            "claude_abdulaziz_office_tail_test_{}_{}.jsonl",
             label,
             std::process::id()
         ));

@@ -12,13 +12,13 @@ const sh = (over: Partial<ScopedHook> = {}): ScopedHook => ({
 });
 
 describe("hookScopeLabels", () => {
-  it("has origin labels for 4 scopes in the ja locale", () => {
-    useI18nStore.setState({ locale: "ja" });
+  it("has origin labels for 4 scopes in the ru locale", () => {
+    useI18nStore.setState({ locale: "ru" });
     const labels = hookScopeLabels();
-    expect(labels.user).toBe("ユーザー (~/.claude)");
-    expect(labels.project).toBe("プロジェクト (.claude)");
-    expect(labels.local).toBe("ローカル (.local)");
-    expect(labels.plugin).toBe("プラグイン");
+    expect(labels.user).toBe("Пользователь (~/.claude)");
+    expect(labels.project).toBe("Проект (.claude)");
+    expect(labels.local).toBe("Локально (.local)");
+    expect(labels.plugin).toBe("Плагин");
   });
 });
 

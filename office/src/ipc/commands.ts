@@ -6,6 +6,7 @@ import type {
   FocusResult,
   HookEntry,
   InitialState,
+  HqSnapshot,
   ReplayData,
   ReplaySessionMeta,
   ScopedHook,
@@ -26,6 +27,9 @@ export type EffectiveHooks = Record<string, ScopedHook[]>;
 export const api = {
   getInitialState(): Promise<InitialState> {
     return invoke<InitialState>("get_initial_state");
+  },
+  getHqSnapshot(): Promise<HqSnapshot> {
+    return invoke<HqSnapshot>("get_hq_snapshot");
   },
   listAgents(project?: string): Promise<AgentDef[]> {
     return invoke<AgentDef[]>("list_agents", { project });

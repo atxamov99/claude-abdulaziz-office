@@ -19,7 +19,7 @@ export interface CharTemplate {
 }
 
 export const GRID_SIZE = 16;
-const STORAGE_KEY = "claude-code-park:characters";
+const STORAGE_KEY = "claude-abdulaziz-office:characters";
 
 /** List of edit target keys iterated for initialization and persistence. */
 export const EDIT_KEYS: EditKey[] = [

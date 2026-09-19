@@ -128,15 +128,15 @@ fn apply_enabled_request(app: &AppHandle) -> Result<(), String> {
         .get()
         .ok_or_else(|| "tray setup() hasn't finished yet".to_string())?;
     let menu = MenuBuilder::new(app)
-        .text(MENU_OPEN, "Open Claude Code Park")
+        .text(MENU_OPEN, "Open Claude — Abdulaziz Office")
         .separator()
-        .text(MENU_QUIT, "Quit Claude Code Park")
+        .text(MENU_QUIT, "Quit Claude — Abdulaziz Office")
         .build()
         .map_err(|e| format!("failed to build the tray menu: {e}"))?;
     TrayIconBuilder::with_id(TRAY_ID)
         .icon(frames[0].clone())
         .icon_as_template(true)
-        .tooltip("Claude Code Park")
+        .tooltip("Claude — Abdulaziz Office")
         .menu(&menu)
         .on_menu_event(|app, event| handle_menu_event(app, event.id().as_ref()))
         .build(app)
@@ -169,7 +169,7 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         let session_id = session_id.to_string();
         tauri::async_runtime::spawn(async move {
             if let Err(e) = focus_terminal_core(sessions_dir, session_id, project).await {
-                eprintln!("[claude-code-park][tray] focus_terminal failed: {e}");
+                eprintln!("[claude-abdulaziz-office][tray] focus_terminal failed: {e}");
             }
         });
     }
@@ -202,10 +202,10 @@ fn refresh_menu_and_tooltip(app: &AppHandle) {
     let entries = MENU_SESSIONS.lock().unwrap().clone();
 
     let tip = if entries.is_empty() {
-        "Claude Code Park".to_string()
+        "Claude — Abdulaziz Office".to_string()
     } else {
         format!(
-            "Claude Code Park — {} waiting for your reply",
+            "Claude — Abdulaziz Office — {} waiting for your reply",
             entries.len()
         )
     };
@@ -219,9 +219,9 @@ fn refresh_menu_and_tooltip(app: &AppHandle) {
         builder = builder.separator();
     }
     builder = builder
-        .text(MENU_OPEN, "Open Claude Code Park")
+        .text(MENU_OPEN, "Open Claude — Abdulaziz Office")
         .separator()
-        .text(MENU_QUIT, "Quit Claude Code Park");
+        .text(MENU_QUIT, "Quit Claude — Abdulaziz Office");
     if let Ok(menu) = builder.build() {
         let _ = tray.set_menu(Some(menu));
     }

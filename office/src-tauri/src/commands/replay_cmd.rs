@@ -212,7 +212,7 @@ mod tests {
 
     fn tmp_jsonl(label: &str, content: &str) -> std::path::PathBuf {
         let path = std::env::temp_dir().join(format!(
-            "claude_code_park_replay_cmd_test_{}_{}.jsonl",
+            "claude_abdulaziz_office_replay_cmd_test_{}_{}.jsonl",
             label,
             std::process::id()
         ));

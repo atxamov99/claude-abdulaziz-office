@@ -11,19 +11,19 @@ import { SkillsManager } from "./components/SkillsManager";
 import { Settings } from "./components/Settings";
 import { MetricsDashboard } from "./components/MetricsDashboard";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { useT } from "./i18n";
+import { useT, type MessageKey } from "./i18n";
 
 type Tab = "office" | "replay" | "metrics" | "agents" | "hooks" | "skills" | "settings";
 
-// For labels without an i18n key (nav.*), use the fixed brand name as-is.
-const TABS: { id: Tab; label: string }[] = [
-  { id: "office", label: "" },
-  { id: "replay", label: "Повтор" },
-  { id: "metrics", label: "Метрики Park" },
-  { id: "agents", label: "Агенты" },
-  { id: "hooks", label: "Хуки" },
-  { id: "skills", label: "Навыки" },
-  { id: "settings", label: "" },
+// office/settings are special-cased below (hq.tabs.office / hq.tabs.settings); the rest read their key here.
+const TABS: { id: Tab; labelKey: MessageKey | null }[] = [
+  { id: "office", labelKey: null },
+  { id: "replay", labelKey: "hq.tabs.replay" },
+  { id: "metrics", labelKey: "hq.tabs.metricsPark" },
+  { id: "agents", labelKey: "hq.tabs.agents" },
+  { id: "hooks", labelKey: "hq.tabs.hooks" },
+  { id: "skills", labelKey: "hq.tabs.skills" },
+  { id: "settings", labelKey: null },
 ];
 
 export function App() {
@@ -57,7 +57,7 @@ export function App() {
   return (
     <div className="app">
       <div className="tabbar" data-tauri-drag-region>
-        <span className="brand" data-tauri-drag-region>Claude HQ Office</span>
+        <span className="brand" data-tauri-drag-region>Claude — Abdulaziz Office</span>
         {TABS.map((item) => (
           <button
             key={item.id}
@@ -65,19 +65,19 @@ export function App() {
             onClick={() => setTab(item.id)}
           >
             {item.id === "office"
-              ? "Офис HQ"
+              ? t("hq.tabs.office")
               : item.id === "settings"
-                ? "Настройки"
-                : item.label}
+                ? t("hq.tabs.settings")
+                : t(item.labelKey!)}
           </button>
         ))}
       </div>
       <UpdateBanner />
       <div className="content">
-        {tab !== "office" && monitor.error && <p className="hq-error">Связь с HQ потеряна. Последнее обновление: {monitor.updated || "нет"}.</p>}
+        {tab !== "office" && monitor.error && <p className="hq-error">{t("hq.connectionLost", {time: monitor.updated || t("hq.noneFallback")})}</p>}
         {tab === "office" && <HqOffice monitor={monitor}/>}
         {tab === "replay" && <ReplayView />}
-        {tab === "metrics" && <><p style={{padding:"10px 24px",color:"#ffbe80"}}>Общая статистика оригинального Park, не только HQ. Для HQ используйте счётчики на вкладке «Офис HQ»: здесь старый расчёт без разделения кеша.</p><MetricsDashboard /></>}
+        {tab === "metrics" && <><p style={{padding:"10px 24px",color:"#ffbe80"}}>{t("hq.metricsBanner")}</p><MetricsDashboard /></>}
         {tab === "agents" && <AgentsManager />}
         {tab === "hooks" && <HooksManager />}
         {tab === "skills" && <SkillsManager />}

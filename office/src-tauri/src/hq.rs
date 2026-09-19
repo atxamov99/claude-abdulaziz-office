@@ -98,7 +98,7 @@ pub async fn get_hq_snapshot() -> Result<Value, String> {
             Ok(office) => projects["office"] = office,
             Err(_) => projects["office_error"] = json!("Учёт ходов HQ пока недоступен"),
         }
-        let history_path = dirs::data_dir().ok_or("Data directory unavailable")?.join("dev.claudehq.office/hq-history.json");
+        let history_path = dirs::data_dir().ok_or("Data directory unavailable")?.join("dev.abdulaziz.office/hq-history.json");
         match history::observe(&history_path, &projects) {
             Ok(history) => projects["history"] = history,
             Err(error) => projects["history_error"] = json!(error),

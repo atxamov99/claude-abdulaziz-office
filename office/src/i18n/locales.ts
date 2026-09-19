@@ -1,17 +1,13 @@
-/** Supported locales. ja is the source of truth (types are derived from it). */
-export const LOCALES = ["ja", "en", "zh", "ko", "es", "fr", "de"] as const;
+/** Supported locales. en is the source of truth (types are derived from it). */
+export const LOCALES = ["en", "ru", "uz"] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
 /** Display names used in the language selector etc. (each language's endonym). */
 export const LOCALE_LABELS: Record<Locale, string> = {
-  ja: "日本語",
   en: "English",
-  zh: "中文",
-  ko: "한국어",
-  es: "Español",
-  fr: "Français",
-  de: "Deutsch",
+  ru: "Русский",
+  uz: "Oʻzbekcha",
 };
 
 /** Type guard that checks whether a possibly-unknown value is a supported locale. */
@@ -21,14 +17,12 @@ export function isLocale(v: unknown): v is Locale {
 
 /**
  * Infers a supported locale from a BCP-47 tag such as navigator.language.
- * Falls back to en if there's no match (a Japanese product, but defaulting to international users).
+ * Falls back to en if there's no match.
  */
 export function resolveLocale(tag: string | null | undefined): Locale {
   if (!tag) return "en";
   const lower = tag.toLowerCase();
   const primary = lower.split("-")[0];
   if (isLocale(primary)) return primary;
-  // Map zh-Hant / zh-TW etc. to the Simplified Chinese catalog too (currently only zh exists).
-  if (primary === "zh") return "zh";
   return "en";
 }

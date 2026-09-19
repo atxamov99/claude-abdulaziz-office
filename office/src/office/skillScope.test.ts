@@ -16,12 +16,12 @@ const sk = (name: string, kind: "user" | "project" | "plugin", plugin?: string):
 });
 
 describe("skillScopeLabels", () => {
-  it("has origin labels for 3 scopes in the ja locale", () => {
-    useI18nStore.setState({ locale: "ja" });
+  it("has origin labels for 3 scopes in the ru locale", () => {
+    useI18nStore.setState({ locale: "ru" });
     const labels = skillScopeLabels();
-    expect(labels.user).toBe("ユーザー (~/.claude)");
-    expect(labels.project).toBe("プロジェクト (.claude)");
-    expect(labels.plugin).toBe("プラグイン");
+    expect(labels.user).toBe("Пользователь (~/.claude)");
+    expect(labels.project).toBe("Проект (.claude)");
+    expect(labels.plugin).toBe("Плагин");
   });
 });
 

@@ -352,7 +352,7 @@ mod compute_all_filter_tests {
     /// Creates a unique directory for tests under temp_dir.
     fn make_projects_dir(label: &str) -> PathBuf {
         let dir = std::env::temp_dir()
-            .join(format!("claude_code_park_metrics_test_{}_{}", label, std::process::id()));
+            .join(format!("claude_abdulaziz_office_metrics_test_{}_{}", label, std::process::id()));
         fs::create_dir_all(&dir).unwrap();
         dir
     }

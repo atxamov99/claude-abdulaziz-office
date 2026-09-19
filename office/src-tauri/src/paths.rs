@@ -37,6 +37,6 @@ impl ClaudePaths {
         self.home.join("sessions")
     }
     pub fn backups_dir(&self) -> PathBuf {
-        self.home.join("backups").join("claude-code-park")
+        self.home.join("backups").join("claude-abdulaziz-office")
     }
 }

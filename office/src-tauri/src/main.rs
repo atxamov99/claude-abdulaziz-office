@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    claude_code_park_lib::run();
+    claude_abdulaziz_office_lib::run();
 }

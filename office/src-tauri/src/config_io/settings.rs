@@ -28,7 +28,7 @@ pub fn read_hooks(settings_path: &Path) -> AppResult<HooksMap> {
             match serde_json::from_value::<HookEntry>(item.clone()) {
                 Ok(entry) => entries.push(entry),
                 Err(e) => eprintln!(
-                    "[claude-code-park][hooks] skipping broken hook entry for {event}: {e}"
+                    "[claude-abdulaziz-office][hooks] skipping broken hook entry for {event}: {e}"
                 ),
             }
         }
@@ -47,7 +47,7 @@ fn read_scoped(path: &Path, scope: &str, plugin: Option<&str>) -> EffectiveHooks
         Ok(raw) => raw,
         Err(e) => {
             eprintln!(
-                "[claude-code-park][hooks] skipping load of {} ({}): {e}",
+                "[claude-abdulaziz-office][hooks] skipping load of {} ({}): {e}",
                 path.display(),
                 scope
             );

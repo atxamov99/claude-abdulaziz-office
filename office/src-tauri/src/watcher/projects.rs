@@ -26,7 +26,7 @@ pub const EV_LIFECYCLE: &str = "state://lifecycle/fired";
 pub fn spawn(app: AppHandle, proj_tx: mpsc::Sender<HashSet<PathBuf>>) {
     std::thread::spawn(move || {
         if let Err(e) = run(app, proj_tx) {
-            eprintln!("[claude-code-park][watcher] watch loop ended: {e}");
+            eprintln!("[claude-abdulaziz-office][watcher] watch loop ended: {e}");
         }
     });
 }
@@ -46,7 +46,7 @@ fn run(
 
     if !projects_dir.is_dir() {
         eprintln!(
-            "[claude-code-park][watcher] projects directory not found: {}",
+            "[claude-abdulaziz-office][watcher] projects directory not found: {}",
             projects_dir.display()
         );
         return Ok(());
@@ -56,7 +56,7 @@ fn run(
     let mut debouncer = new_debouncer(Duration::from_millis(150), None, tx)?;
     debouncer.watch(&projects_dir, RecursiveMode::Recursive)?;
     eprintln!(
-        "[claude-code-park][watcher] watching: {}",
+        "[claude-abdulaziz-office][watcher] watching: {}",
         projects_dir.display()
     );
 
@@ -79,7 +79,7 @@ fn run(
                     sync_project_dirs(&app, &proj_tx, &mut last_dirs);
                 }
             }
-            Ok(Err(errs)) => eprintln!("[claude-code-park][watcher] error: {errs:?}"),
+            Ok(Err(errs)) => eprintln!("[claude-abdulaziz-office][watcher] error: {errs:?}"),
             Err(mpsc::RecvTimeoutError::Timeout) => {
                 // Even with no events, recompute status to reflect idle/ended transitions.
                 emit_sessions(&app);
@@ -117,7 +117,7 @@ fn initial_scan(app: &AppHandle, projects_dir: &Path, tail: &mut TailReader) {
             tail.mark_read_to_end(&entry);
         }
     }
-    eprintln!("[claude-code-park][watcher] startup scan complete: restored {restored} sessions");
+    eprintln!("[claude-abdulaziz-office][watcher] startup scan complete: restored {restored} sessions");
 }
 
 /// Processes one path and updates the World. Returns true if anything changed.
@@ -181,7 +181,7 @@ fn process_path(
 fn log_activity(session_id: &str, s: &Session) {
     let a = &s.current;
     eprintln!(
-        "[claude-code-park] session {}: {:?} {}",
+        "[claude-abdulaziz-office] session {}: {:?} {}",
         &session_id[..session_id.len().min(8)],
         a.kind,
         a.detail.as_deref().unwrap_or("")

@@ -22,7 +22,7 @@ enum Msg {
 pub fn spawn(app: AppHandle, proj_rx: Receiver<HashSet<PathBuf>>) {
     std::thread::spawn(move || {
         if let Err(e) = run(app, proj_rx) {
-            eprintln!("[claude-code-park][config-watcher] exited: {e}");
+            eprintln!("[claude-abdulaziz-office][config-watcher] exited: {e}");
         }
     });
 }
@@ -72,7 +72,7 @@ fn run(
     // The project <project>/.claude dirs currently watched. Deduped by set membership, so a dir
     // is released once no active session references it anymore (e.g. its session ended).
     let mut watched: HashSet<PathBuf> = HashSet::new();
-    eprintln!("[claude-code-park][config-watcher] watching");
+    eprintln!("[claude-abdulaziz-office][config-watcher] watching");
 
     for msg in rx {
         match msg {
@@ -88,7 +88,7 @@ fn run(
                 for new in desired.difference(&watched) {
                     if let Err(e) = debouncer.watch(new, RecursiveMode::Recursive) {
                         eprintln!(
-                            "[claude-code-park][config-watcher] failed to watch {}: {e}",
+                            "[claude-abdulaziz-office][config-watcher] failed to watch {}: {e}",
                             new.display()
                         );
                     }

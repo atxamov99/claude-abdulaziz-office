@@ -20,7 +20,7 @@ use state::AppState;
 pub fn run() {
     let claude_paths = ClaudePaths::discover().unwrap_or_else(|e| {
         // Still start up even in environments without ~/.claude (shows an empty state).
-        eprintln!("[claude-code-park] {e}; assuming ~/.claude and continuing");
+        eprintln!("[claude-abdulaziz-office] {e}; assuming ~/.claude and continuing");
         ClaudePaths {
             home: dirs::home_dir().unwrap_or_default().join(".claude"),
         }
@@ -77,5 +77,5 @@ pub fn run() {
             commands::tray_cmd::set_tray_enabled
         ])
         .run(tauri::generate_context!())
-        .expect("failed to launch Claude Code Park");
+        .expect("failed to launch Claude — Abdulaziz Office");
 }

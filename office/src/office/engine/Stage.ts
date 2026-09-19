@@ -41,6 +41,8 @@ export class Stage {
   private currentTod: TimeOfDay = "day";
   /** Periodic timer for re-checking the time of day (cleared in destroy). */
   private timeTimer: number | null = null;
+  /** Page Visibility handler that pauses/resumes the ticker (removed in destroy). */
+  private onVisibilityChange: (() => void) | null = null;
   /** Width/height of the content stacked on world (used to clamp the pan amount). */
   private contentWidth = 0;
   private contentHeight = 0;
@@ -66,6 +68,22 @@ export class Stage {
     });
     this.app.stage.addChild(this.world);
     this.app.stage.addChild(this.dialogTetherG);
+
+    // Cap the render/animation loop instead of running uncapped (bound to the
+    // display's refresh rate, e.g. 120Hz on ProMotion) — the office view is a
+    // slow-paced sim, 30fps is visually indistinguishable but roughly halves
+    // to quarters CPU/GPU load from the WorldRenderer.update() work below.
+    this.app.ticker.maxFPS = 30;
+    // Stop the ticker entirely while the window isn't visible (minimized, on
+    // another space, or hidden behind the tray). Nothing needs to animate for
+    // nobody to look at, and this is what was keeping the CPU/fans busy even
+    // when the app sat in the background.
+    this.onVisibilityChange = () => {
+      if (document.hidden) this.app.ticker.stop();
+      else this.app.ticker.start();
+    };
+    document.addEventListener("visibilitychange", this.onVisibilityChange);
+    if (document.hidden) this.app.ticker.stop();
 
     // Preload the floor/wall/furniture PNGs (fall back to code drawing on failure).
     await loadAssets();
@@ -190,6 +208,10 @@ export class Stage {
     if (this.timeTimer !== null) {
       clearInterval(this.timeTimer);
       this.timeTimer = null;
+    }
+    if (this.onVisibilityChange) {
+      document.removeEventListener("visibilitychange", this.onVisibilityChange);
+      this.onVisibilityChange = null;
     }
     // Guard against crashing if destroy runs before init (renderer not yet created).
     if (this.app.renderer) {

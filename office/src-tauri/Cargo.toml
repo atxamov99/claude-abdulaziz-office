@@ -1,12 +1,12 @@
 [package]
-name = "claude-code-park"
+name = "claude-abdulaziz-office"
 version = "0.8.0"
-description = "Claude Code Park — a desktop app to manage and improve Claude Code in a game-like way"
+description = "Claude — Abdulaziz Office — a desktop app to manage and improve Claude Code in a game-like way"
 edition = "2021"
 rust-version = "1.77"
 
 [lib]
-name = "claude_code_park_lib"
+name = "claude_abdulaziz_office_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]

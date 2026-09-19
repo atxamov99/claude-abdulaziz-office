@@ -5,7 +5,7 @@ import { api } from "../ipc/commands";
  * Client-side display preferences for the town screen (persisted in localStorage).
  * Not business logic, so it doesn't go in the Rust settings.json.
  */
-const STORAGE_KEY = "claude-code-park:ui-prefs";
+const STORAGE_KEY = "claude-abdulaziz-office:ui-prefs";
 
 /** Pure function reading lifecycleView from the persisted JSON (missing key defaults to true; only an explicit false is false). */
 export function parseLifecyclePref(raw: string | null): boolean {

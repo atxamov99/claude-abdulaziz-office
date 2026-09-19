@@ -7,6 +7,7 @@ export type { AgentSource } from "./AgentSource";
 export type { CommandDef } from "./CommandDef";
 export type { HookAction } from "./HookAction";
 export type { HookEntry } from "./HookEntry";
+export type { HqSnapshot, HqTask, HqUsage, HqWorker } from "./HqSnapshot";
 export type { HookEvent } from "./HookEvent";
 export type { HookOutcome } from "./HookOutcome";
 export type { ScopedHook } from "./ScopedHook";

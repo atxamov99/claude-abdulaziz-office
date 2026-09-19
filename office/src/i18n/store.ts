@@ -5,7 +5,7 @@ import { isLocale, resolveLocale, type Locale } from "./locales";
  * Client-side display-language setting (persisted to localStorage).
  * On first run it's inferred from the OS locale (navigator.language); thereafter the user's choice is respected.
  */
-const STORAGE_KEY = "claude-code-park:locale";
+const STORAGE_KEY = "claude-abdulaziz-office:locale";
 
 /** Pure function that infers the locale from the OS locale when there's no persisted value. */
 export function initialLocale(stored: string | null, navLang: string | null): Locale {
