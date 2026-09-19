@@ -1,0 +1,3 @@
+aiohttp>=3.10,<4
+Telethon>=1.36,<2
+# Optional voice transcription: install faster-whisper separately.
