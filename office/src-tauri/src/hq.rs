@@ -2,6 +2,7 @@ use serde_json::{json, Value};
 #[path = "hq_history.rs"]
 mod history;
 use std::{collections::HashMap, io::{BufRead, BufReader}, sync::{Mutex, OnceLock}};
+use tauri::{AppHandle, Emitter};
 
 type Cache = HashMap<String, (u64, u128, Value)>;
 static CACHE: OnceLock<Mutex<Cache>> = OnceLock::new();
@@ -16,6 +17,16 @@ pub fn registered(session_id: &str) -> bool {
 fn get(path: &str) -> Result<Value, String> {
     let output = std::process::Command::new("/usr/bin/curl")
         .args(["-q", "--noproxy", "*", "-fsS", "--max-time", "5", &format!("http://127.0.0.1:8765/{path}")])
+        .output().map_err(|e| e.to_string())?;
+    if !output.status.success() { return Err(format!("Claude HQ недоступен: {}",String::from_utf8_lossy(&output.stderr).trim())); }
+    serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
+}
+
+fn post(path: &str, body: &str, max_time: &str) -> Result<Value, String> {
+    let output = std::process::Command::new("/usr/bin/curl")
+        .args(["-q", "--noproxy", "*", "-fsS", "--max-time", max_time, "-X", "POST",
+               "-H", "Content-Type: application/json", "-d", body,
+               &format!("http://127.0.0.1:8765/{path}")])
         .output().map_err(|e| e.to_string())?;
     if !output.status.success() { return Err(format!("Claude HQ недоступен: {}",String::from_utf8_lossy(&output.stderr).trim())); }
     serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
@@ -107,9 +118,122 @@ pub async fn get_hq_snapshot() -> Result<Value, String> {
     }).await.map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+pub async fn hq_add_project(name: String, path: String) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let body = json!({"name": name, "path": path}).to_string();
+        post("projects/add", &body, "5")
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn hq_restart_worker(project: String, fresh: bool) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let body = json!({"project": project, "fresh": fresh}).to_string();
+        post("workers/restart", &body, "30")
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn hq_pending_questions() -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(|| get("ask/pending")).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn hq_answer_question(key: String, index: i32) -> Result<Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let body = json!({"key": key, "index": index}).to_string();
+        post("ask/answer", &body, "5")
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// Parses one line of an SSE stream against carried-over parser state (the `event:`
+/// line seen since the last completed frame). Returns the completed `(kind, payload)`
+/// once the matching `data:` line arrives; a malformed/non-JSON data line is dropped
+/// (state still clears, so the stream can recover on the next `event:`).
+fn sse_line(line: &str, event_kind: &mut Option<String>) -> Option<(String, Value)> {
+    if let Some(kind) = line.strip_prefix("event: ") {
+        *event_kind = Some(kind.to_string());
+        None
+    } else if let Some(data) = line.strip_prefix("data: ") {
+        let kind = event_kind.take()?;
+        serde_json::from_str::<Value>(data).ok().map(|payload| (kind, payload))
+    } else {
+        None
+    }
+}
+
+/// Streams one chat turn from the Office Chat tab: spawns `curl -N` against the
+/// HQ SSE endpoint and re-emits each frame as a Tauri event scoped by `stream_id`,
+/// so the frontend can listen before this command's promise even resolves (it
+/// returns as soon as the background thread is spawned, not when the turn ends).
+/// Mirrors `watcher::spawn`'s own "OS thread -> app.emit" bridging pattern.
+#[tauri::command]
+pub async fn hq_chat_send(app: AppHandle, stream_id: String, project: String, prompt: String) -> Result<(), String> {
+    std::thread::spawn(move || {
+        let emit = |kind: &str, payload: Value| {
+            let _ = app.emit(&format!("chat://{stream_id}/{kind}"), payload);
+        };
+        let body = json!({"project": project, "prompt": prompt}).to_string();
+        let child = std::process::Command::new("/usr/bin/curl")
+            .args(["-N", "-sS", "-q", "--noproxy", "*", "-X", "POST",
+                   "-H", "Content-Type: application/json", "-d", &body,
+                   "http://127.0.0.1:8765/chat/stream"])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        let mut child = match child {
+            Ok(c) => c,
+            Err(e) => {
+                emit("error", json!({"message": e.to_string()}));
+                emit("done", json!({}));
+                return;
+            }
+        };
+        if let Some(stdout) = child.stdout.take() {
+            let mut event_kind: Option<String> = None;
+            for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+                if let Some((kind, payload)) = sse_line(&line, &mut event_kind) {
+                    emit(&kind, payload);
+                }
+            }
+        }
+        let _ = child.wait();
+        emit("done", json!({}));
+    });
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn sse_line_parses_event_then_data() {
+        let mut state = None;
+        assert_eq!(sse_line("event: delta", &mut state), None);
+        assert_eq!(state.as_deref(), Some("delta"));
+        let frame = sse_line("data: {\"text\":\"hi\"}", &mut state);
+        assert_eq!(frame, Some(("delta".to_string(), json!({"text": "hi"}))));
+        assert_eq!(state, None); // consumed by the completed frame
+    }
+    #[test]
+    fn sse_line_ignores_blank_and_unprefixed_lines() {
+        let mut state = Some("tool".to_string());
+        assert_eq!(sse_line("", &mut state), None);
+        assert_eq!(sse_line("not a frame", &mut state), None);
+        assert_eq!(state.as_deref(), Some("tool")); // untouched by non-matching lines
+    }
+    #[test]
+    fn sse_line_drops_data_with_no_preceding_event() {
+        let mut state = None;
+        assert_eq!(sse_line("data: {\"text\":\"orphan\"}", &mut state), None);
+    }
+    #[test]
+    fn sse_line_drops_malformed_json_but_clears_state() {
+        let mut state = Some("delta".to_string());
+        assert_eq!(sse_line("data: not-json", &mut state), None);
+        assert_eq!(state, None);
+    }
     #[test]
     fn usage_deduplicates_message_fragments_and_tracks_cache() {
         let path = std::env::temp_dir().join(format!("hq-usage-{}.jsonl",std::process::id()));

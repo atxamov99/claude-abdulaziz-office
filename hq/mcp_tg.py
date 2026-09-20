@@ -102,6 +102,35 @@ TOOLS = [
         "description": "Список проектов и состояние их воркеров.",
         "inputSchema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "hq_add_project",
+        "description": "Зарегистрировать новый проект по имени и существующему пути — без ручной правки projects.json.",
+        "inputSchema": {"type": "object", "properties": {
+            "name": {"type": "string", "description": "Имя проекта (станет слагом)"},
+            "path": {"type": "string", "description": "Абсолютный путь к существующей папке проекта"},
+        }, "required": ["name", "path"]},
+    },
+    {
+        "name": "hq_restart_worker",
+        "description": "Перезапустить воркер проекта — если он умер или завис. fresh=true — новый контекст, иначе сохранённая сессия.",
+        "inputSchema": {"type": "object", "properties": {
+            "project": {"type": "string"},
+            "fresh": {"type": "boolean", "description": "true — сбросить контекст, false/по умолчанию — сохранить сессию"},
+        }, "required": ["project"]},
+    },
+    {
+        "name": "hq_pending_questions",
+        "description": "Вопросы воркеров, ждущие ответа прямо сейчас (tg_ask), с их ключами и вариантами — для ответа через hq_answer_question без похода в Telegram.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "hq_answer_question",
+        "description": "Ответить на вопрос воркера (из hq_pending_questions) по его key и индексу выбранного варианта. Гонка с кнопкой в Telegram: кто первый ответил, тот и выиграл.",
+        "inputSchema": {"type": "object", "properties": {
+            "key": {"type": "string"},
+            "index": {"type": "integer", "description": "Индекс варианта в списке options"},
+        }, "required": ["key", "index"]},
+    },
 ]
 for tname, (_kind, desc) in FILE_TOOLS.items():
     TOOLS.append({
@@ -132,6 +161,14 @@ def post(path: str, payload: dict, timeout: float = 3700) -> dict:
             return json.loads(e.read().decode())
         except Exception:
             return {"ok": False, "error": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"ok": False, "error": f"бот claude-hq недоступен на {BASE}: {e}"}
+
+
+def get_json(path: str, timeout: float = 15) -> dict:
+    try:
+        with urllib.request.urlopen(BASE + path, timeout=timeout) as r:
+            return json.loads(r.read().decode())
     except Exception as e:
         return {"ok": False, "error": f"бот claude-hq недоступен на {BASE}: {e}"}
 
@@ -202,6 +239,35 @@ def call(name: str, args: dict) -> str:
                 return json.dumps(json.loads(resp.read().decode()), ensure_ascii=False, indent=2)
         except Exception as e:
             return f"ошибка: {e}"
+    if name == "hq_add_project":
+        r = post("/projects/add", {"name": args.get("name", ""), "path": args.get("path", "")})
+        if not r.get("ok"):
+            return f"ошибка: {r.get('error')}"
+        return f"добавлен `{r.get('slug')}` → {r.get('path')}"
+    if name == "hq_restart_worker":
+        r = post("/workers/restart", {"project": args.get("project", ""),
+                                      "fresh": bool(args.get("fresh"))}, timeout=60)
+        if not r.get("ok"):
+            known = r.get("known")
+            return f"ошибка: {r.get('error')}" + (f" · известные: {', '.join(known)}" if known else "")
+        return f"`{r.get('project')}` перезапущен" + (" (новый контекст)" if args.get("fresh") else " (сессия сохранена)")
+    if name == "hq_pending_questions":
+        r = get_json("/ask/pending")
+        if not r.get("ok"):
+            return f"ошибка: {r.get('error')}"
+        pending = r.get("pending") or []
+        if not pending:
+            return "нет вопросов, ждущих ответа"
+        out = []
+        for p in pending:
+            opts = ", ".join(f"{i}={o}" for i, o in enumerate(p.get("options") or []))
+            out.append(f"[{p['key']}] от {p.get('worker')}: {p.get('question')}\n  варианты: {opts}")
+        return "\n\n".join(out)
+    if name == "hq_answer_question":
+        r = post("/ask/answer", {"key": args.get("key", ""), "index": int(args.get("index", 0))}, timeout=15)
+        if not r.get("ok"):
+            return f"ошибка: {r.get('error')}"
+        return "ответ принят"
     if name in FILE_TOOLS:
         kind = FILE_TOOLS[name][0]
         path = os.path.expanduser(args.get("path", ""))

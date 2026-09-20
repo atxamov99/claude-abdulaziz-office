@@ -86,4 +86,24 @@ export const api = {
   setTrayEnabled(enabled: boolean): Promise<void> {
     return invoke<void>("set_tray_enabled", { enabled });
   },
+  // --- Chat / control (Boshqaruv) ---
+  hqAddProject(name: string, path: string): Promise<{ ok: boolean; slug?: string; path?: string; error?: string }> {
+    return invoke("hq_add_project", { name, path });
+  },
+  hqRestartWorker(project: string, fresh: boolean): Promise<{ ok: boolean; project?: string; error?: string }> {
+    return invoke("hq_restart_worker", { project, fresh });
+  },
+  hqPendingQuestions(): Promise<{ ok: boolean; pending?: PendingQuestion[]; error?: string }> {
+    return invoke("hq_pending_questions");
+  },
+  hqAnswerQuestion(key: string, index: number): Promise<{ ok: boolean; error?: string }> {
+    return invoke("hq_answer_question", { key, index });
+  },
+  /** Starts a streamed chat turn; the promise resolves once the background stream is spawned,
+   * not once the turn finishes — listen on `chat://{streamId}/...` events for the actual content. */
+  hqChatSend(streamId: string, project: string, prompt: string): Promise<void> {
+    return invoke<void>("hq_chat_send", { streamId, project, prompt });
+  },
 };
+
+export type PendingQuestion = { key: string; worker: string; question: string; options: string[] };

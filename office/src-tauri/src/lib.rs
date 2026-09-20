@@ -56,6 +56,11 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             hq::get_hq_snapshot,
+            hq::hq_add_project,
+            hq::hq_restart_worker,
+            hq::hq_pending_questions,
+            hq::hq_answer_question,
+            hq::hq_chat_send,
             commands::world_cmd::get_initial_state,
             commands::agents_cmd::list_agents,
             commands::agents_cmd::get_effective_agents,

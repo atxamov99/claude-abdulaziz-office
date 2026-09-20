@@ -151,6 +151,10 @@ MGR = Manager()
 BOT: Optional[TelegramClient] = None
 PENDING_ASKS: dict[str, asyncio.Future] = {}
 ASK_OPTIONS: dict[str, list[str]] = {}
+# Текст вопроса и имя спросившего воркера — не нужны для резолва future (это делает
+# ключ), но без них GUI/MCP не может показать/перечислить вопрос без похода в Telegram.
+ASK_QUESTIONS: dict[str, str] = {}
+ASK_WORKER: dict[str, str] = {}
 
 def log(msg: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
@@ -414,6 +418,8 @@ async def http_ask(request: web.Request) -> web.Response:
     fut: asyncio.Future = asyncio.get_running_loop().create_future()
     PENDING_ASKS[key] = fut
     ASK_OPTIONS[key] = options[:8]
+    ASK_QUESTIONS[key] = question
+    ASK_WORKER[key] = worker
     rows = [[Button.inline(o[:60], f'ask:{key}:{i}'.encode())] for i, o in enumerate(options[:8])]
     try:
         ask_msg = await safe_send(chat, f'❓ {question}', reply_to=topic, buttons=rows)
@@ -432,6 +438,24 @@ async def http_ask(request: web.Request) -> web.Response:
     finally:
         PENDING_ASKS.pop(key, None)
         ASK_OPTIONS.pop(key, None)
+        ASK_QUESTIONS.pop(key, None)
+        ASK_WORKER.pop(key, None)
+
+async def http_ask_pending(request: web.Request) -> web.Response:
+    """Вопросы, всё ещё ждущие ответа — для GUI/MCP клиентов, не только Telegram."""
+    pending = [{'key': key, 'worker': ASK_WORKER.get(key, '?'), 'question': ASK_QUESTIONS.get(key, ''),
+                'options': ASK_OPTIONS.get(key, [])} for key, fut in PENDING_ASKS.items() if not fut.done()]
+    return web.json_response({'ok': True, 'pending': pending})
+
+async def http_ask_answer(request: web.Request) -> web.Response:
+    """Ответ на вопрос не из Telegram (GUI/MCP). Гонка с кнопкой в Telegram решается
+    тем же done()-чеком, что и on_callback — кто первый ответил, тот и выиграл."""
+    data = await request.json()
+    fut = PENDING_ASKS.get(data.get('key') or '')
+    if not fut or fut.done():
+        return web.json_response({'ok': False, 'error': 'вопрос уже неактуален'})
+    fut.set_result(int(data.get('index') or 0))
+    return web.json_response({'ok': True})
 
 async def http_projects(request: web.Request) -> web.Response:
     return web.json_response({'ok': True, 'projects': MGR.reg['projects'], 'workers': {n: {'alive': w.alive(), 'busy': w.busy, 'turns': w.turns, 'cost_usd': round(w.cost, 4), 'cwd': w.cwd, 'session': w.session_id, 'last_activity': w._last_activity, 'office_turn': w._office_turn} for n, w in MGR.workers.items()}})
@@ -617,6 +641,81 @@ async def http_run(request: web.Request) -> web.Response:
     await safe_edit(note, f'✅ `{name}` ({len(tool_seen)} шагов)')
     return web.json_response({'ok': True, 'project': name, 'response': text})
 
+async def http_chat_stream(request: web.Request) -> web.Response:
+    """Канал для Office-чата: то же самое, что hq_run, но без Telegram —
+    льём события хода клиенту как Server-Sent Events, в реальном времени."""
+    data = await request.json()
+    name = MGR.resolve(data.get('project') or '')
+    if not name:
+        return web.json_response({'ok': False, 'error': 'проект не найден', 'known': list(MGR.reg['projects'])}, status=404)
+    try:
+        w = MGR.get(name)
+    except KeyError:
+        return web.json_response({'ok': False, 'error': 'нет пути к проекту'}, status=404)
+    if w.busy:
+        return web.json_response({'ok': False, 'error': f'{name} занят'}, status=409)
+    resp = web.StreamResponse(status=200, headers={
+        'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+    await resp.prepare(request)
+
+    async def send(kind: str, payload: dict):
+        frame = f"event: {kind}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        await resp.write(frame.encode())
+
+    async def on_text_delta(d):
+        await send('delta', {'text': d})
+
+    async def on_tool(n, b):
+        await send('tool', {'name': n, 'brief': b})
+
+    async def on_result(text, meta):
+        await send('result', {'text': text, 'meta': meta})
+
+    async def on_error(m):
+        await send('error', {'message': m})
+
+    ev = TurnEvents(on_text_delta=on_text_delta, on_tool=on_tool, on_result=on_result, on_error=on_error,
+                     trace={'source': 'http_chat'})
+    prompt = data.get('prompt') or ''
+    try:
+        await w.ask([{'type': 'text', 'text': prompt}], ev, timeout=float(data.get('timeout') or 3600))
+    except Exception as e:
+        try:
+            await send('error', {'message': str(e)})
+        except Exception:
+            pass
+    finally:
+        await resp.write_eof()
+    return resp
+
+async def http_projects_add(request: web.Request) -> web.Response:
+    data = await request.json()
+    name = (data.get('name') or '').strip()
+    raw_path = (data.get('path') or '').strip()
+    if not name or not raw_path:
+        return web.json_response({'ok': False, 'error': 'нужны name и path'}, status=400)
+    path = Path(os.path.expanduser(raw_path)).resolve()
+    if not path.is_dir():
+        return web.json_response({'ok': False, 'error': 'нет такой папки'}, status=400)
+    s = slug(name)
+    if s in MGR.reg['projects']:
+        return web.json_response({'ok': False, 'error': 'проект с таким именем уже есть'}, status=409)
+    MGR.reg['projects'][s] = str(path)
+    save_projects(MGR.reg)
+    return web.json_response({'ok': True, 'slug': s, 'path': str(path)})
+
+async def http_workers_restart(request: web.Request) -> web.Response:
+    data = await request.json()
+    name = MGR.resolve(data.get('project') or '')
+    if not name:
+        return web.json_response({'ok': False, 'error': 'проект не найден', 'known': list(MGR.reg['projects'])}, status=404)
+    try:
+        w = MGR.get(name)
+    except KeyError:
+        return web.json_response({'ok': False, 'error': 'нет пути к проекту'}, status=404)
+    await w.restart(fresh=bool(data.get('fresh')))
+    return web.json_response({'ok': True, 'project': name})
+
 async def start_http():
     app = web.Application(client_max_size=64 * 1024 * 1024)
     app.router.add_get('/health', lambda r: web.json_response({'ok': True}))
@@ -630,7 +729,12 @@ async def start_http():
     app.router.add_get('/tasks', http_tasks)
     app.router.add_post('/result', http_result)
     app.router.add_post('/ask', http_ask)
+    app.router.add_get('/ask/pending', http_ask_pending)
+    app.router.add_post('/ask/answer', http_ask_answer)
     app.router.add_post('/send/{kind}', http_send)
+    app.router.add_post('/chat/stream', http_chat_stream)
+    app.router.add_post('/projects/add', http_projects_add)
+    app.router.add_post('/workers/restart', http_workers_restart)
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, '127.0.0.1', HTTP_PORT).start()
