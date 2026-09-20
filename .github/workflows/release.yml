@@ -44,3 +44,14 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --bundles app
+
+      - name: Publish latest.json for the updater
+        working-directory: office/src-tauri/target/release/bundle/macos
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#office-v}"
+          sig_file=$(ls *.app.tar.gz.sig)
+          python3 "$GITHUB_WORKSPACE/.github/scripts/publish_latest_json.py" \
+            "$sig_file" "$version" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY"
