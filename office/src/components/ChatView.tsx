@@ -1,42 +1,29 @@
-import { useEffect, useRef, useState } from "react";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { useEffect, useState } from "react";
 import { api, type PendingQuestion } from "../ipc/commands";
 import type { useHqMonitor } from "./HqOffice";
+import { useChatStore } from "../stores/chatStore";
 import { t } from "../i18n";
 import "./hq.css";
-
-type Bubble = {
-  id: string;
-  role: "user" | "assistant" | "error";
-  text: string;
-  toolLines: string[];
-  done: boolean;
-};
-
-function newId(): string {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export function ChatView({ monitor }: { monitor: ReturnType<typeof useHqMonitor> }) {
   const workers = monitor.snapshot?.workers ?? {};
   const names = Object.keys(workers).sort();
-  const [selected, setSelected] = useState<string | null>(names[0] ?? null);
-  const [threads, setThreads] = useState<Record<string, Bubble[]>>({});
+  const threads = useChatStore((s) => s.threads);
+  const selected = useChatStore((s) => s.selected);
+  const setSelected = useChatStore((s) => s.setSelected);
+  const sending = useChatStore((s) => (selected ? s.sending[selected] ?? false : false));
+  const send = useChatStore((s) => s.send);
   const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
   const [restarting, setRestarting] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingQuestion[]>([]);
   const [addOpen, setAddOpen] = useState(false);
   const [addName, setAddName] = useState("");
   const [addPath, setAddPath] = useState("");
   const [addError, setAddError] = useState("");
-  const unlistenRef = useRef<UnlistenFn[]>([]);
 
   useEffect(() => {
     if (!selected && names.length) setSelected(names[0]);
-  }, [names, selected]);
+  }, [names, selected, setSelected]);
 
   useEffect(() => {
     let disposed = false;
@@ -52,88 +39,12 @@ export function ChatView({ monitor }: { monitor: ReturnType<typeof useHqMonitor>
     };
   }, []);
 
-  useEffect(() => {
-    return () => {
-      unlistenRef.current.forEach((fn) => fn());
-      unlistenRef.current = [];
-    };
-  }, []);
-
-  function appendBubble(project: string, bubble: Bubble) {
-    setThreads((prev) => ({ ...prev, [project]: [...(prev[project] ?? []), bubble] }));
-  }
-
-  function patchBubble(project: string, id: string, patch: Partial<Bubble>) {
-    setThreads((prev) => ({
-      ...prev,
-      [project]: (prev[project] ?? []).map((b) => (b.id === id ? { ...b, ...patch } : b)),
-    }));
-  }
-
-  async function send() {
+  async function handleSend() {
     const project = selected;
     const prompt = input.trim();
     if (!project || !prompt || sending) return;
     setInput("");
-    setSending(true);
-    appendBubble(project, { id: newId(), role: "user", text: prompt, toolLines: [], done: true });
-    const replyId = newId();
-    appendBubble(project, { id: replyId, role: "assistant", text: "", toolLines: [], done: false });
-    const streamId = newId();
-
-    unlistenRef.current.forEach((fn) => fn());
-    unlistenRef.current = [];
-    const cleanup = () => {
-      unlistenRef.current.forEach((fn) => fn());
-      unlistenRef.current = [];
-      setSending(false);
-    };
-
-    const subs = await Promise.all([
-      listen<{ text: string }>(`chat://${streamId}/delta`, (e) => {
-        setThreads((prev) => ({
-          ...prev,
-          [project]: (prev[project] ?? []).map((b) =>
-            b.id === replyId ? { ...b, text: b.text + e.payload.text } : b
-          ),
-        }));
-      }),
-      listen<{ name: string; brief: string }>(`chat://${streamId}/tool`, (e) => {
-        setThreads((prev) => ({
-          ...prev,
-          [project]: (prev[project] ?? []).map((b) =>
-            b.id === replyId
-              ? { ...b, toolLines: [...b.toolLines, t("hq.chat.toolLine", { name: e.payload.name, brief: e.payload.brief })] }
-              : b
-          ),
-        }));
-      }),
-      listen<{ text: string }>(`chat://${streamId}/result`, (e) => {
-        patchBubble(project, replyId, { text: e.payload.text, done: true });
-      }),
-      listen<{ message: string }>(`chat://${streamId}/error`, (e) => {
-        patchBubble(project, replyId, { role: "error", text: t("hq.chat.errorPrefix", { message: e.payload.message }), done: true });
-      }),
-      listen(`chat://${streamId}/done`, () => {
-        // Belt-and-suspenders: if the stream ended without ever seeing a result/error
-        // (e.g. the bot process died mid-turn), don't leave the bubble spinning forever.
-        setThreads((prev) => ({
-          ...prev,
-          [project]: (prev[project] ?? []).map((b) =>
-            b.id === replyId && !b.done ? { ...b, role: "error", text: t("hq.chat.streamError") } : b
-          ),
-        }));
-        cleanup();
-      }),
-    ]);
-    unlistenRef.current = subs;
-
-    try {
-      await api.hqChatSend(streamId, project, prompt);
-    } catch (e) {
-      patchBubble(project, replyId, { role: "error", text: t("hq.chat.errorPrefix", { message: String(e) }), done: true });
-      cleanup();
-    }
+    await send(project, prompt);
   }
 
   async function restart(name: string) {
@@ -236,13 +147,13 @@ export function ChatView({ monitor }: { monitor: ReturnType<typeof useHqMonitor>
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
-                    send();
+                    handleSend();
                   }
                 }}
                 placeholder={t("hq.chat.inputPlaceholder", { project: selected })}
                 disabled={sending}
               />
-              <button onClick={send} disabled={sending || !input.trim()}>
+              <button onClick={handleSend} disabled={sending || !input.trim()}>
                 {sending ? t("hq.chat.sending") : t("hq.chat.send")}
               </button>
             </div>
