@@ -30,12 +30,14 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/icon.png"],
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": true
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM4RjVEMzYwNjUxRTc5QjQKUldTMGVSNWxZTlAxeU1iQVNEQnphZDYxUDFFYXRxeVJzN3JLQWNPTWdvOVY0ZlFyQnFuUEk3RHYK",
-      "endpoints": []
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDM4N0MzRjIzMTQ1NjZEMjMKUldRamJWWVVJejk4T0QrOUJpR2hsTGMxazY4V0pJdUZJV3hLamRHK3k1enlCYkxENnRGMHdHRmMK",
+      "endpoints": [
+        "https://github.com/atxamov99/claude-abdulaziz-office/releases/latest/download/latest.json"
+      ]
     }
   }
 }

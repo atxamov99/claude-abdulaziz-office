@@ -1,0 +1,46 @@
+name: release
+
+# Builds, signs, and publishes a macOS release of the Office app whenever a
+# `office-vX.Y.Z` tag is pushed. The running app's built-in updater (Settings
+# tab -> "Check for updates") points at this repo's latest GitHub Release, so
+# publishing here is what makes existing installs able to self-update.
+on:
+  push:
+    tags:
+      - "office-v*"
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: office/package-lock.json
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        working-directory: office
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          # The key has no password (generated with an empty passphrase), so
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD is intentionally omitted rather
+          # than set to an empty secret.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        with:
+          projectPath: office
+          tagName: ${{ github.ref_name }}
+          releaseName: "Claude — Abdulaziz Office ${{ github.ref_name }}"
+          releaseBody: "See the commit history for what changed."
+          releaseDraft: false
+          prerelease: false
+          args: --bundles app

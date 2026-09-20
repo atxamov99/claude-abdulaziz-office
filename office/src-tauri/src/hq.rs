@@ -14,22 +14,34 @@ pub fn registered(session_id: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Interprets one curl invocation's result. Without `-f`, curl still writes the
+/// response body for a 4xx/5xx (bot.py always answers with a JSON `{ok:false,
+/// error:...}` body even on its own validation errors), so a parseable JSON body
+/// wins regardless of HTTP status — that's a real answer from HQ, just a negative
+/// one, and the caller (Rust command / frontend) already knows how to show `error`.
+/// Only a transport-level failure (HQ not running, timed out, etc. — no body to
+/// parse at all) falls back to the generic "unavailable" message.
+fn curl_result(output: std::process::Output) -> Result<Value, String> {
+    if let Ok(value) = serde_json::from_slice::<Value>(&output.stdout) {
+        return Ok(value);
+    }
+    Err(format!("Claude HQ недоступен: {}", String::from_utf8_lossy(&output.stderr).trim()))
+}
+
 fn get(path: &str) -> Result<Value, String> {
     let output = std::process::Command::new("/usr/bin/curl")
-        .args(["-q", "--noproxy", "*", "-fsS", "--max-time", "5", &format!("http://127.0.0.1:8765/{path}")])
+        .args(["-q", "--noproxy", "*", "-sS", "--max-time", "5", &format!("http://127.0.0.1:8765/{path}")])
         .output().map_err(|e| e.to_string())?;
-    if !output.status.success() { return Err(format!("Claude HQ недоступен: {}",String::from_utf8_lossy(&output.stderr).trim())); }
-    serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
+    curl_result(output)
 }
 
 fn post(path: &str, body: &str, max_time: &str) -> Result<Value, String> {
     let output = std::process::Command::new("/usr/bin/curl")
-        .args(["-q", "--noproxy", "*", "-fsS", "--max-time", max_time, "-X", "POST",
+        .args(["-q", "--noproxy", "*", "-sS", "--max-time", max_time, "-X", "POST",
                "-H", "Content-Type: application/json", "-d", body,
                &format!("http://127.0.0.1:8765/{path}")])
         .output().map_err(|e| e.to_string())?;
-    if !output.status.success() { return Err(format!("Claude HQ недоступен: {}",String::from_utf8_lossy(&output.stderr).trim())); }
-    serde_json::from_slice(&output.stdout).map_err(|e| e.to_string())
+    curl_result(output)
 }
 
 fn usage(path: &std::path::Path) -> Value {
