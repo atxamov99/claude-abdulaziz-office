@@ -458,6 +458,7 @@ export const en = {
       addProject: "Add project",
       addProjectName: "Name",
       addProjectPath: "Path",
+      addProjectBrowse: "Browse…",
       addProjectSubmit: "Add",
       addProjectError: "Couldn't add project: {error}",
       restart: "Restart",

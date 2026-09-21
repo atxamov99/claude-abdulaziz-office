@@ -459,6 +459,7 @@ export const ru: Messages = {
       addProject: "Добавить проект",
       addProjectName: "Имя",
       addProjectPath: "Путь",
+      addProjectBrowse: "Выбрать папку…",
       addProjectSubmit: "Добавить",
       addProjectError: "Не удалось добавить проект: {error}",
       restart: "Перезапустить",

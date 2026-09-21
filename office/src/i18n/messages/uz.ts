@@ -459,6 +459,7 @@ export const uz: Messages = {
       addProject: "Loyiha qo'shish",
       addProjectName: "Nomi",
       addProjectPath: "Yo'li",
+      addProjectBrowse: "Papkani tanlash…",
       addProjectSubmit: "Qo'shish",
       addProjectError: "Loyihani qo'shib bo'lmadi: {error}",
       restart: "Qayta ishga tushirish",

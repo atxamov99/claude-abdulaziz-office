@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { api, type PendingQuestion } from "../ipc/commands";
 import type { useHqMonitor } from "./HqOffice";
 import { useChatStore } from "../stores/chatStore";
@@ -51,6 +52,11 @@ export function ChatView({ monitor }: { monitor: ReturnType<typeof useHqMonitor>
     setRestarting(name);
     await api.hqRestartWorker(name, false).catch(() => {});
     setRestarting(null);
+  }
+
+  async function browsePath() {
+    const dir = await openDialog({ directory: true, multiple: false }).catch(() => null);
+    if (typeof dir === "string") setAddPath(dir);
   }
 
   async function addProject() {
@@ -107,7 +113,10 @@ export function ChatView({ monitor }: { monitor: ReturnType<typeof useHqMonitor>
         ) : (
           <div className="hq-chat-add-form">
             <input placeholder={t("hq.chat.addProjectName")} value={addName} onChange={(e) => setAddName(e.target.value)} />
-            <input placeholder={t("hq.chat.addProjectPath")} value={addPath} onChange={(e) => setAddPath(e.target.value)} />
+            <div className="hq-chat-add-path-row">
+              <input placeholder={t("hq.chat.addProjectPath")} value={addPath} onChange={(e) => setAddPath(e.target.value)} />
+              <button type="button" onClick={browsePath}>{t("hq.chat.addProjectBrowse")}</button>
+            </div>
             <button onClick={addProject}>{t("hq.chat.addProjectSubmit")}</button>
             {addError && <p className="hq-error">{addError}</p>}
           </div>
