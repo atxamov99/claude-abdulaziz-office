@@ -1,21 +1,84 @@
 name: release
 
-# Builds, signs, and publishes a macOS release of the Office app whenever a
-# `office-vX.Y.Z` tag is pushed. The running app's built-in updater (Settings
-# tab -> "Check for updates") points at this repo's latest GitHub Release, so
-# publishing here is what makes existing installs able to self-update.
+# Publishes a signed macOS release of the Office app so the running app's
+# built-in updater (Settings tab -> "Check for updates") can self-update.
+#
+# Two ways in:
+# 1) push an "office-vX.Y.Z" tag by hand for a deliberate release.
+# 2) push to main with office/ changes — the `version` job bumps the patch
+#    version itself, commits it, and tags it. (A tag pushed with the default
+#    GITHUB_TOKEN does not re-trigger this workflow, so bumping and building
+#    have to happen in the same run rather than by chaining two triggers.)
 on:
   push:
     tags:
       - "office-v*"
+    branches:
+      - main
+    paths:
+      - "office/**"
 
 jobs:
+  version:
+    # Only for plain pushes to main — a tag push already names its version,
+    # and skip the workflow's own bump commits to avoid tagging twice.
+    if: "github.ref_type != 'tag' && !startsWith(github.event.head_commit.message, 'chore: bump office version')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - id: bump
+        working-directory: office
+        run: |
+          set -euo pipefail
+          current=$(node -p "require('./package.json').version")
+          IFS='.' read -r major minor patch <<< "$current"
+          next="$major.$minor.$((patch + 1))"
+
+          npm pkg set version="$next" >/dev/null
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/Cargo.toml';
+            const s = fs.readFileSync(p, 'utf8').replace(/^version = \"[^\"]*\"/m, 'version = \"$next\"');
+            fs.writeFileSync(p, s);
+          "
+          node -e "
+            const fs = require('fs');
+            const p = 'src-tauri/tauri.conf.json';
+            const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+            j.version = '$next';
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + '\n');
+          "
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json
+          git commit -m "chore: bump office version to $next"
+          git tag "office-v$next"
+          git push origin HEAD:main
+          git push origin "office-v$next"
+          echo "tag=office-v$next" >> "$GITHUB_OUTPUT"
+
   release:
+    needs: [version]
+    if: always() && (github.ref_type == 'tag' || needs.version.result == 'success')
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -29,6 +92,17 @@ jobs:
         working-directory: office
         run: npm ci
 
+      - name: Frontend tests
+        working-directory: office
+        run: npm test
+
+      - name: Rust tests
+        working-directory: office/src-tauri
+        run: cargo test --lib
+
+      - id: tagname
+        run: echo "value=${{ github.ref_type == 'tag' && github.ref_name || needs.version.outputs.tag }}" >> "$GITHUB_OUTPUT"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           # The key has no password (generated with an empty passphrase), so
@@ -38,8 +112,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         with:
           projectPath: office
-          tagName: ${{ github.ref_name }}
-          releaseName: "Claude — Abdulaziz Office ${{ github.ref_name }}"
+          tagName: ${{ steps.tagname.outputs.value }}
+          releaseName: "Claude — Abdulaziz Office ${{ steps.tagname.outputs.value }}"
           releaseBody: "See the commit history for what changed."
           releaseDraft: false
           prerelease: false
@@ -51,7 +125,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          version="${GITHUB_REF_NAME#office-v}"
+          tag="${{ steps.tagname.outputs.value }}"
+          version="${tag#office-v}"
           sig_file=$(ls *.app.tar.gz.sig)
           python3 "$GITHUB_WORKSPACE/.github/scripts/publish_latest_json.py" \
-            "$sig_file" "$version" "$GITHUB_REF_NAME" "$GITHUB_REPOSITORY"
+            "$sig_file" "$version" "$tag" "$GITHUB_REPOSITORY"
