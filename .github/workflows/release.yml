@@ -96,6 +96,14 @@ jobs:
         working-directory: office
         run: npm test
 
+      - name: Build frontend
+        # tauri::generate_context!() (compiled into both the test binary and
+        # the app) checks that frontendDist ("../dist") exists, so the Rust
+        # side can't even compile — for tests or for the real build — until
+        # this has run once.
+        working-directory: office
+        run: npm run build
+
       - name: Rust tests
         working-directory: office/src-tauri
         run: cargo test --lib
