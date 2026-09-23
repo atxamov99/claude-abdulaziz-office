@@ -448,10 +448,17 @@ export const en = {
       skills: "Skills",
       settings: "Settings",
       chat: "Chat",
+      terminal: "Terminal",
     },
     connectionLost: "Connection to HQ lost. Last update: {time}.",
     noneFallback: "none",
     metricsBanner: "Overall stats of the original Park, not just HQ. For HQ, use the counters on the \"HQ Office\" tab — this is the old calculation without cache separation.",
+    terminal: {
+      heading: "Terminal",
+      emptyState: "Pick an agent on the left to open its terminal.",
+      noWorkers: "No agents yet — add a project in the Chat tab.",
+      detached: "The terminal was detached. Switch agents to reconnect.",
+    },
     chat: {
       heading: "Chat",
       emptyState: "Pick a project on the left to start chatting.",

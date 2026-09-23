@@ -83,6 +83,20 @@ export const api = {
   focusTerminal(sessionId: string, project: string): Promise<FocusResult> {
     return invoke<FocusResult>("focus_terminal", { sessionId, project });
   },
+  // --- Terminal tab (live agent PTY; see src-tauri/src/pty) ---
+  /** Attaches to the worker's tmux session; resolves with the session name. */
+  ptyOpen(worker: string, cols: number, rows: number): Promise<string> {
+    return invoke<string>("pty_open", { worker, cols, rows });
+  },
+  ptyWrite(worker: string, data: string): Promise<void> {
+    return invoke<void>("pty_write", { worker, data });
+  },
+  ptyResize(worker: string, cols: number, rows: number): Promise<void> {
+    return invoke<void>("pty_resize", { worker, cols, rows });
+  },
+  ptyClose(worker: string): Promise<void> {
+    return invoke<void>("pty_close", { worker });
+  },
   setTrayEnabled(enabled: boolean): Promise<void> {
     return invoke<void>("set_tray_enabled", { enabled });
   },
