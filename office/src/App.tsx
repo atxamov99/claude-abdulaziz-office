@@ -12,14 +12,16 @@ import { Settings } from "./components/Settings";
 import { MetricsDashboard } from "./components/MetricsDashboard";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { ChatView } from "./components/ChatView";
+import { TerminalView } from "./components/TerminalView";
 import { useT, type MessageKey } from "./i18n";
 
-type Tab = "office" | "chat" | "replay" | "metrics" | "agents" | "hooks" | "skills" | "settings";
+type Tab = "office" | "chat" | "terminal" | "replay" | "metrics" | "agents" | "hooks" | "skills" | "settings";
 
 // office/settings are special-cased below (hq.tabs.office / hq.tabs.settings); the rest read their key here.
 const TABS: { id: Tab; labelKey: MessageKey | null }[] = [
   { id: "office", labelKey: null },
   { id: "chat", labelKey: "hq.tabs.chat" },
+  { id: "terminal", labelKey: "hq.tabs.terminal" },
   { id: "replay", labelKey: "hq.tabs.replay" },
   { id: "metrics", labelKey: "hq.tabs.metricsPark" },
   { id: "agents", labelKey: "hq.tabs.agents" },
@@ -79,6 +81,7 @@ export function App() {
         {tab !== "office" && monitor.error && <p className="hq-error">{t("hq.connectionLost", {time: monitor.updated || t("hq.noneFallback")})}</p>}
         {tab === "office" && <HqOffice monitor={monitor}/>}
         {tab === "chat" && <ChatView monitor={monitor}/>}
+        {tab === "terminal" && <TerminalView monitor={monitor}/>}
         {tab === "replay" && <ReplayView />}
         {tab === "metrics" && <><p style={{padding:"10px 24px",color:"#ffbe80"}}>{t("hq.metricsBanner")}</p><MetricsDashboard /></>}
         {tab === "agents" && <AgentsManager />}

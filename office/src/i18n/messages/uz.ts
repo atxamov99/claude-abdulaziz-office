@@ -449,10 +449,17 @@ export const uz: Messages = {
       skills: "Skilllar",
       settings: "Sozlamalar",
       chat: "Chat",
+      terminal: "Terminal",
     },
     connectionLost: "HQ bilan aloqa uzildi. Oxirgi yangilanish: {time}.",
     noneFallback: "yo'q",
     metricsBanner: "Bu asl Park'ning umumiy statistikasi, faqat HQ emas. HQ uchun «HQ Ofis» bo'limidagi hisoblagichlardan foydalaning — bu yerda eski hisob-kitob, keshni ajratmasdan.",
+    terminal: {
+      heading: "Terminal",
+      emptyState: "Terminalni ochish uchun chapdan agentni tanlang.",
+      noWorkers: "Hali agent yo'q — «Chat» bo'limida loyiha qo'shing.",
+      detached: "Terminal uzildi. Qayta ulanish uchun agentni almashtiring.",
+    },
     chat: {
       heading: "Chat",
       emptyState: "Yozishmani boshlash uchun chapdan loyihani tanlang.",

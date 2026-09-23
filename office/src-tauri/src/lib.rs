@@ -7,6 +7,7 @@ mod metrics;
 mod model;
 mod paths;
 mod pipeline;
+mod pty;
 mod state;
 mod terminal;
 mod tray;
@@ -31,6 +32,8 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new(claude_paths))
+        // Live agent terminals shown in the Terminal tab (one PTY per worker).
+        .manage(pty::SharedPty::default())
         .setup(|app| {
             use tauri::Manager;
             // At startup, load employees (agent definitions) into the World.
@@ -80,6 +83,10 @@ pub fn run() {
             commands::replay_cmd::list_replay_sessions,
             commands::replay_cmd::get_replay_data,
             commands::terminal_cmd::focus_terminal,
+            commands::pty_cmd::pty_open,
+            commands::pty_cmd::pty_write,
+            commands::pty_cmd::pty_resize,
+            commands::pty_cmd::pty_close,
             commands::tray_cmd::set_tray_enabled
         ])
         .run(tauri::generate_context!())
