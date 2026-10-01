@@ -23,7 +23,13 @@ from telethon.tl.types import DocumentAttributeFilename, UpdateNewChannelMessage
 from telethon.tl.functions.messages import CreateForumTopicRequest, GetForumTopicsRequest
 sys.path.insert(0, str(Path(__file__).parent))
 from worker import ClaudeWorker, TurnEvents
+from terminal_worker import TerminalWorker
 import clients
+
+# terminal — тестовый режим (QADAM 4): видимое окно Terminal.app с
+# интерактивной claude в tmux вместо headless `claude -p`. print (по
+# умолчанию) — прежнее поведение, ничего не меняется без явного выбора.
+HQ_WORKER_MODE = os.environ.get("HQ_WORKER", "print")
 from telemetry import record as office_record
 HQ = Path(__file__).resolve().parent
 INBOX = HQ / 'inbox'
@@ -131,15 +137,16 @@ class Manager:
     def get(self, name: str) -> ClaudeWorker:
         if name in self.workers:
             return self.workers[name]
+        WorkerClass = TerminalWorker if HQ_WORKER_MODE == 'terminal' else ClaudeWorker
         if clients.is_client(name):
             w = clients.make_worker(name, DEFAULT_MODEL, DEFAULT_EFFORT)
         elif name == 'hq':
-            w = ClaudeWorker(name='hq', cwd=str(HQ), model=DEFAULT_MODEL, effort=DEFAULT_EFFORT, extra_dirs=[], mcp_config=str(HQ / 'mcp.json'), system_append=HQ_SYSTEM)
+            w = WorkerClass(name='hq', cwd=str(HQ), model=DEFAULT_MODEL, effort=DEFAULT_EFFORT, extra_dirs=[], mcp_config=str(HQ / 'mcp.json'), system_append=HQ_SYSTEM)
         else:
             path = self.project_path(name)
             if not path:
                 raise KeyError(name)
-            w = ClaudeWorker(name=name, cwd=path, model=DEFAULT_MODEL, effort=DEFAULT_EFFORT, mcp_config=str(HQ / 'mcp.json'), system_append='Ты проектный агент в Telegram. Работай в отдельном git worktree, сохраняй чужие изменения. Перед завершением проверь результат и дождись запущенных тобой агентов. Связь с главным — hq_notify.')
+            w = WorkerClass(name=name, cwd=path, model=DEFAULT_MODEL, effort=DEFAULT_EFFORT, mcp_config=str(HQ / 'mcp.json'), system_append='Ты проектный агент в Telegram. Работай в отдельном git worktree, сохраняй чужие изменения. Перед завершением проверь результат и дождись запущенных тобой агентов. Связь с главным — hq_notify.')
         self.workers[name] = w
         if not clients.is_client(name):
             w.permission_mode = CFG.get('HQ_PERMISSION_MODE', 'dontAsk')
